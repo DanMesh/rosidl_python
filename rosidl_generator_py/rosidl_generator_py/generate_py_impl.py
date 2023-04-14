@@ -17,6 +17,7 @@ import keyword
 import os
 import pathlib
 import sys
+import time
 
 from rosidl_cmake import convert_camel_case_to_lower_case_underscore
 from rosidl_cmake import expand_template
@@ -53,17 +54,30 @@ SPECIAL_NESTED_BASIC_TYPES = {
 }
 
 
-def generate_py(generator_arguments_file, typesupport_impls):
-    mapping = {
+def get_template_mapping():
+    return {
         '_idl.py.em': '_%s.py',
         '_idl_support.c.em': '_%s_s.c',
     }
-    generated_files = generate_files(generator_arguments_file, mapping)
 
+
+def generate_py(generator_arguments_file, typesupport_impls):
+    mapping = get_template_mapping()
+    t_start = time.time()
+    # generated_files = generate_files(generator_arguments_file, mapping)
+    generated_files = []
+    t_end = time.time()
+    out_string = ">>> generate_py <<<\n"
+    out_string += " - generate_files (default) = " + str(t_end - t_start) + "s\n"
+
+    t_start = time.time()
     args = read_generator_arguments(generator_arguments_file)
     package_name = args['package_name']
+    t_end = time.time()
+    out_string += " - read_generator_arguments = " + str(t_end - t_start) + "s\n"
 
     # expand init modules for each directory
+    t_start = time.time()
     modules = {}
     idl_content = IdlContent()
     for idl_tuple in args.get('idl_tuples', []):
@@ -77,6 +91,8 @@ def generate_py(generator_arguments_file, typesupport_impls):
         locator = IdlLocator(*idl_parts)
         idl_file = parse_idl_file(locator)
         idl_content.elements += idl_file.content.elements
+    t_end = time.time()
+    out_string += " - expand init modules = " + str(t_end - t_start) + "s\n"
 
     # NOTE(sam): remove when a language specific name mangling is implemented
 
@@ -89,6 +105,7 @@ def generate_py(generator_arguments_file, typesupport_impls):
                 .format(member_name, interface_type, interface_name),
                 file=sys.stderr)
 
+    t_start = time.time()
     for message in idl_content.get_elements_of_type(Message):
         for member in message.structure.members:
             print_warning_if_reserved_keyword(
@@ -118,7 +135,10 @@ def generate_py(generator_arguments_file, typesupport_impls):
             print_warning_if_reserved_keyword(
                 member.name, 'action result',
                 action.namespaced_type.name)
+    t_end = time.time()
+    out_string += " - check things = " + str(t_end - t_start) + "s\n"
 
+    t_start = time.time()
     for subfolder in modules.keys():
         with open(os.path.join(args['output_dir'], subfolder, '__init__.py'), 'w') as f:
             module_names = {}
@@ -131,8 +151,11 @@ def generate_py(generator_arguments_file, typesupport_impls):
                 f.write(
                     f'from {package_name}.{subfolder}.{module_name} import '
                     f'{idl_stem}  # noqa: F401\n')
+    t_end = time.time()
+    out_string += " - write things = " + str(t_end - t_start) + "s\n"
 
     # expand templates per available typesupport implementation
+    t_start = time.time()
     template_dir = args['template_dir']
     type_support_impl_by_filename = {
         '_%s_s.ep.{0}.c'.format(impl): impl for impl in typesupport_impls
@@ -141,12 +164,16 @@ def generate_py(generator_arguments_file, typesupport_impls):
         os.path.join(template_dir, '_idl_pkg_typesupport_entry_point.c.em'):
         type_support_impl_by_filename.keys(),
     }
+    t_end = time.time()
+    out_string += " - set some vars = " + str(t_end - t_start) + "s\n"
 
     for template_file in mapping_msg_pkg_extension.keys():
         assert os.path.exists(template_file), 'Could not find template: ' + template_file
+        print("  - t: " + template_file + ": " + str(mapping_msg_pkg_extension[template_file]))
 
     latest_target_timestamp = get_newest_modification_time(args['target_dependencies'])
 
+    t_start = time.time()
     for template_file, generated_filenames in mapping_msg_pkg_extension.items():
         for generated_filename in generated_filenames:
             package_name = args['package_name']
@@ -162,6 +189,11 @@ def generate_py(generator_arguments_file, typesupport_impls):
                 template_file, data, generated_file,
                 minimum_timestamp=latest_target_timestamp)
             generated_files.append(generated_file)
+            print(" > another file:   " + generated_file)
+    t_end = time.time()
+    out_string += " - expand templates = " + str(t_end - t_start) + "s\n"
+
+    print(out_string)
 
     return generated_files
 

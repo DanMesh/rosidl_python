@@ -88,6 +88,8 @@ foreach(_pkg_name ${rosidl_generate_interfaces_DEPENDENCY_PACKAGE_NAMES})
   endforeach()
 endforeach()
 
+set(generator_arguments_file "${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_py__arguments.json")
+
 set(target_dependencies
   "${rosidl_generator_py_BIN}"
   ${rosidl_generator_py_GENERATOR_FILES}
@@ -102,23 +104,13 @@ set(target_dependencies
   "${rosidl_generator_py_TEMPLATE_DIR}/_srv_pkg_typesupport_entry_point.c.em"
   "${rosidl_generator_py_TEMPLATE_DIR}/_srv.py.em"
   ${rosidl_generate_interfaces_ABS_IDL_FILES}
+  ${generator_arguments_file}
   ${_dependency_files})
 foreach(dep ${target_dependencies})
   if(NOT EXISTS "${dep}")
     message(FATAL_ERROR "Target dependency '${dep}' does not exist")
   endif()
 endforeach()
-
-set(generator_arguments_file "${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_py__arguments.json")
-rosidl_write_generator_arguments(
-  "${generator_arguments_file}"
-  PACKAGE_NAME "${PROJECT_NAME}"
-  IDL_TUPLES "${rosidl_generate_interfaces_IDL_TUPLES}"
-  ROS_INTERFACE_DEPENDENCIES "${_dependencies}"
-  OUTPUT_DIR "${_output_path}"
-  TEMPLATE_DIR "${rosidl_generator_py_TEMPLATE_DIR}"
-  TARGET_DEPENDENCIES ${target_dependencies}
-)
 
 if(NOT rosidl_generate_interfaces_SKIP_INSTALL)
   ament_python_install_package(${PROJECT_NAME} PACKAGE_DIR "${_output_path}")

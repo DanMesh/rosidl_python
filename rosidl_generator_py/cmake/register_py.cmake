@@ -19,6 +19,10 @@ macro(rosidl_generator_py_extras BIN GENERATOR_FILES TEMPLATE_DIR)
   find_package(rosidl_typesupport_c QUIET REQUIRED)
 
   ament_register_extension(
+    "rosidl_write_generator_arguments_extensions"
+    "rosidl_generator_py"
+    "rosidl_generator_py_write_arguments.cmake")
+  ament_register_extension(
     "rosidl_generate_idl_interfaces"
     "rosidl_generator_py"
     "rosidl_generator_py_generate_interfaces.cmake")
